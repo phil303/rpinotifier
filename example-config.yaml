@@ -1,0 +1,4 @@
+pushover:
+  token: YOUR_TOKEN
+  user: YOUR_USER_KEY
+  device: YOUR-DEVICE-NAME
