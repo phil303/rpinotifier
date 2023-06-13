@@ -35,7 +35,7 @@ type Config struct {
 const (
 	feedURL     = "https://rpilocator.com/feed/?country=US&cat=PI4"
 	pushoverURL = "https://api.pushover.net/1/messages.json"
-	age         = 5 * time.Minute
+	age         = 10 * time.Minute
 )
 
 func main() {
