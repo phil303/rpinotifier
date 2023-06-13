@@ -3,46 +3,51 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 type Rss struct {
-	XMLName xml.Name `xml:"rss"`
-	Channel Channel  `xml:"channel"`
+	Channel Channel `xml:"channel"`
 }
 
 type Channel struct {
-	Title         string `xml:"title"`
-	Link          string `xml:"link"`
-	Description   string `xml:"description"`
-	LastBuildDate string `xml:"lastBuildDate"`
-	Items         []Item `xml:"item"`
+	Items []Item `xml:"item"`
 }
 
 type Item struct {
-	Title       string   `xml:"title"`
-	Description string   `xml:"description"`
-	Link        string   `xml:"link"`
-	Categories  []string `xml:"category"`
-	GUID        string   `xml:"guid"`
-	PubDate     string   `xml:"pubDate"`
+	Description string `xml:"description"`
+	Link        string `xml:"link"`
+	PubDate     string `xml:"pubDate"`
+}
+
+type Config struct {
+	Pushover struct {
+		APIToken string `yaml:"token"`
+		UserKey  string `yaml:"user"`
+		Device   string `yaml:"device"`
+	} `yaml:"pushover"`
 }
 
 const (
 	feedURL     = "https://rpilocator.com/feed/?country=US&cat=PI4"
 	pushoverURL = "https://api.pushover.net/1/messages.json"
 	age         = 5 * time.Minute
-	apiToken    = ""
-	userKey     = ""
-	device      = ""
 )
 
 func main() {
+	config, err := readConfig("config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	response, err := http.Get(feedURL)
 	if err != nil {
 		log.Fatal(err)
@@ -76,9 +81,14 @@ func main() {
 		return
 	}
 
-	title := "🚨 Raspberry Pis In Stock 🚨"
-	message := url.QueryEscape(strings.Join(items, "\n"))
-	out := fmt.Sprintf("device=%s&token=%s&user=%s&title=%s&message=%s", device, apiToken, userKey, title, message)
+	out := fmt.Sprintf(
+		"device=%s&token=%s&user=%s&title=%s&message=%s",
+		config.Pushover.Device,
+		config.Pushover.APIToken,
+		config.Pushover.UserKey,
+		"🚨 Raspberry Pis In Stock 🚨",
+		url.QueryEscape(strings.Join(items, "\n")),
+	)
 	resp, err := http.Post(pushoverURL, "application/x-www-form-urlencoded", strings.NewReader(out))
 	if err != nil {
 		log.Fatal(err)
@@ -88,4 +98,31 @@ func main() {
 		log.Fatalf("Getting bad status codes from Pushover: %d\n", resp.StatusCode)
 
 	}
+}
+
+func readConfig(filename string) (Config, error) {
+	var config Config
+
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		return config, err
+	}
+
+	f, err := os.Open(absPath)
+	if err != nil {
+		return config, err
+	}
+	defer f.Close()
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		return config, err
+	}
+
+	err = yaml.Unmarshal(content, &config)
+	if err != nil {
+		return config, err
+	}
+
+	return config, nil
 }
