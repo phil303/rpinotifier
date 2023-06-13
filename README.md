@@ -1,5 +1,7 @@
 # RPI Availability Notifier
 
+Scrapes the rpilocator rss feed looking for available Raspberry Pis and sends you a push notification if there is.
+
 ## Setup
 
 This uses a push notif backend called [Pushover](https://pushover.net/), which costs a one time fee of $5. 
