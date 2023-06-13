@@ -1,15 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
-
-	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 type Rss struct {
@@ -34,36 +33,23 @@ type Item struct {
 	PubDate     string   `xml:"pubDate"`
 }
 
-const url = "https://rpilocator.com/feed/?country=US&cat=PI4"
+const (
+	feedURL     = "https://rpilocator.com/feed/?country=US&cat=PI4"
+	pushoverURL = "https://api.pushover.net/1/messages.json"
+	age         = 5 * time.Minute
+	apiToken    = ""
+	userKey     = ""
+	device      = ""
+)
 
 func main() {
-	// Create/Open SQLite database
-	db, err := sql.Open("sqlite3", "rss.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	// Create "items" table if it doesn't exist
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS items (guid TEXT PRIMARY KEY)")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create an index on the "guid" column if it doesn't exist
-	_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_guid ON items (guid)")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Fetch XML data
-	response, err := http.Get(url)
+	response, err := http.Get(feedURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer response.Body.Close()
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,49 +60,32 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create a slice to store GUIDs from XML
-	xmlGUIDs := make([]string, len(rss.Channel.Items))
-
-	for i, item := range rss.Channel.Items {
-		xmlGUIDs[i] = item.GUID
-	}
-
-	// Query existing GUIDs from the database using the list of XML GUIDs
-	query := fmt.Sprintf("SELECT guid FROM items WHERE guid IN (?" + strings.Repeat(",?", len(xmlGUIDs)-1) + ")")
-	queryParams := make([]any, len(xmlGUIDs))
-	for i, p := range xmlGUIDs {
-		queryParams[i] = any(p)
-	}
-	rows, err := db.Query(query, queryParams...)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-
-	// Create a map to track existing GUIDs
-	existingGUIDs := make(map[string]bool)
-	for rows.Next() {
-		var guid string
-		err = rows.Scan(&guid)
+	var items []string
+	for _, item := range rss.Channel.Items {
+		pubDate, err := time.Parse(time.RFC1123, item.PubDate)
 		if err != nil {
 			log.Fatal(err)
 		}
-		existingGUIDs[guid] = true
+
+		if time.Since(pubDate) < age {
+			items = append(items, " • "+item.Description+" Visit "+item.Link)
+		}
 	}
-	if err = rows.Err(); err != nil {
+
+	if len(items) == 0 {
+		return
+	}
+
+	title := "🚨 Raspberry Pis In Stock 🚨"
+	message := url.QueryEscape(strings.Join(items, "\n"))
+	out := fmt.Sprintf("device=%s&token=%s&user=%s&title=%s&message=%s", device, apiToken, userKey, title, message)
+	resp, err := http.Post(pushoverURL, "application/x-www-form-urlencoded", strings.NewReader(out))
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Print new GUIDs not found in the database
-	for _, guid := range xmlGUIDs {
-		if _, exists := existingGUIDs[guid]; !exists {
-			fmt.Println("New GUID found:", guid)
+	if resp.StatusCode >= 400 {
+		log.Fatalf("Getting bad status codes from Pushover: %d\n", resp.StatusCode)
 
-			// Insert the new GUIDs into the database
-			_, err := db.Exec("INSERT INTO items (guid) VALUES (?)", guid)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
 	}
 }
