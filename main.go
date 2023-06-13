@@ -15,17 +15,13 @@ import (
 )
 
 type Rss struct {
-	Channel Channel `xml:"channel"`
-}
-
-type Channel struct {
-	Items []Item `xml:"item"`
-}
-
-type Item struct {
-	Description string `xml:"description"`
-	Link        string `xml:"link"`
-	PubDate     string `xml:"pubDate"`
+	Channel struct {
+		Items []struct {
+			Description string `xml:"description"`
+			Link        string `xml:"link"`
+			PubDate     string `xml:"pubDate"`
+		} `xml:"item"`
+	} `xml:"channel"`
 }
 
 type Config struct {
