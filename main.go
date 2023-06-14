@@ -74,6 +74,7 @@ func main() {
 	}
 
 	if len(items) == 0 {
+		log.Println("Run successful. No items found.")
 		return
 	}
 
@@ -92,8 +93,9 @@ func main() {
 
 	if resp.StatusCode >= 400 {
 		log.Fatalf("Getting bad status codes from Pushover: %d\n", resp.StatusCode)
-
 	}
+
+	log.Println("Run successful. Items found.")
 }
 
 func readConfig(filename string) (Config, error) {
