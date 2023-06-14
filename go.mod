@@ -1,4 +1,4 @@
-module rpiscraper
+module rpinotifier
 
 go 1.20
 
