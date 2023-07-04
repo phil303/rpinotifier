@@ -39,7 +39,7 @@ const (
 )
 
 func main() {
-	config, err := readConfig("config.yaml")
+	config, err := readConfig("./config.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,11 +101,12 @@ func main() {
 func readConfig(filename string) (Config, error) {
 	var config Config
 
-	absPath, err := filepath.Abs(filename)
+	execPath, err := os.Executable()
 	if err != nil {
 		return config, err
 	}
 
+	absPath := filepath.Join(filepath.Dir(execPath), filename)
 	f, err := os.Open(absPath)
 	if err != nil {
 		return config, err
