@@ -92,7 +92,7 @@ func main() {
 	}
 
 	if len(items) == 0 {
-		log.Println("Run successful. No items found.")
+		log.Printf("Query for %s successful. No items found.\n", piVersion)
 		return
 	}
 
@@ -113,7 +113,7 @@ func main() {
 		log.Fatalf("Getting bad status codes from Pushover: %d\n", resp.StatusCode)
 	}
 
-	log.Println("Run successful. Items found.")
+	log.Printf("Query for %s successful. Items found.\n", piVersion)
 }
 
 func readConfig(filename string) (Config, error) {
