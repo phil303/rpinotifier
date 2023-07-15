@@ -33,18 +33,36 @@ type Config struct {
 }
 
 const (
-	feedURL     = "https://rpilocator.com/feed/?country=US&cat=PI4"
+	feedURL     = "https://rpilocator.com/feed/?country=US&cat=%s"
 	pushoverURL = "https://api.pushover.net/1/messages.json"
 	age         = 10 * time.Minute
 )
 
+var piOptions = []string{"pi4", "pizero2"}
+
 func main() {
+	var piVersion string
+
+	if len(os.Args) != 2 {
+		log.Fatalf("Require raspberry version as argument (%s).", strings.Join(piOptions, ", "))
+	}
+
+	for _, v := range piOptions {
+		if os.Args[1] == v {
+			piVersion = os.Args[1]
+		}
+	}
+
+	if piVersion == "" {
+		log.Fatalf("Require one of (%s)", strings.Join(piOptions, ", "))
+	}
+
 	config, err := readConfig("./config.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	response, err := http.Get(feedURL)
+	response, err := http.Get(fmt.Sprintf(feedURL, piVersion))
 	if err != nil {
 		log.Fatal(err)
 	}
